@@ -1,0 +1,4 @@
+diag_path=$(cd $(dirname $0); pwd)
+export PYTHONPATH=${diag_path}
+export PYTHONSTARTUP=$diag_path/chm1r_startup.py
+python3

@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <fcntl.h>
+#include <assert.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+
+#include <fstream>
+#include <string>
+
+#include "Mmap64.h"
+#include <mutex>
+
+#include <pybind11/pybind11.h>
+
+using std::string;
+
+Mmap64::Mmap64(std::string devName,
+               uint64 offset,
+               size_t size)
+    : devName(devName),
+      offset(offset),
+      size(size),
+      baseAddr(loadModulesAndGetBaseAddress(devName, offset, size))
+{
+}
+Mmap64::~Mmap64()
+{
+    munmap(mapAddr, size);
+}
+uint64 Mmap64::loadModulesAndGetBaseAddress(string devName, uint64 offset, size_t size)
+{
+    uint64 theBaseAddress;
+    // Need to load the  Kernel module before mapping against it.
+    bool koLoaded = false;
+    string line;
+    string myDevName = "/dev/" + devName;
+
+    int fd = open(myDevName.c_str(), O_RDWR);
+
+    assert(fd > 0);
+
+    // void *mapAddr;
+    mapAddr = mmap64(NULL,                   // requested address to map to
+                     size,                   // size of range to map
+                     PROT_READ | PROT_WRITE, // set both read and write permissions
+                     MAP_SHARED,             // changes to range are shared
+                     fd,                     // file descriptor for this device
+                     offset);
+
+    // The device can close now
+    close(fd);
+
+    assert(mapAddr != MAP_FAILED);
+    theBaseAddress = reinterpret_cast<uint64>(mapAddr);
+    printf("Mmap64 driver initialized: Virtual Base Addr = 0x%012lX, Size = 0x%08lX\n", theBaseAddress, size);
+    return theBaseAddress;
+}
+
+uint32 Mmap64::read32(uint64 offset)
+{
+    // uint32 data = *(reinterpret_cast<uint32 *>(mapAddr + offset));
+    // uint32 data = *reinterpret_cast<const volatile uint32 *>(baseAddr + offset);//ok
+    uint32 data = *(reinterpret_cast<uint32 *>((char *)mapAddr + offset));
+
+    return data;
+}
+
+void Mmap64::write32(uint64 offset, uint32 value)
+{
+    // *reinterpret_cast<uint32 *>(mapAddr + offset) = value;
+    // *reinterpret_cast<volatile uint32 *>(baseAddr + offset) = value;//ok
+    *reinterpret_cast<uint32 *>((char *)mapAddr + offset) = value;
+}
+
+namespace py = pybind11;
+
+PYBIND11_MODULE(Mmap64, m)
+{
+    py::class_<Mmap64>(m, "Mmap64")
+        .def(py::init<std::string &, uint64 &, size_t &>())
+        .def("read32", &Mmap64::read32)
+        .def("write32", &Mmap64::write32);
+}

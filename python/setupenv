@@ -1,0 +1,3 @@
+export PYTHONPATH=$PYTHONPATH:/mnt/sda/hal
+export PYTHONSTARTUP=/mnt/sda/hal/chm1r_startup.py
+python3

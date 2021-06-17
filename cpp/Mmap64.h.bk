@@ -1,0 +1,30 @@
+#ifndef MMAP64_H
+#define MMAP64_H
+
+#include <string>
+#include <cstdint>
+#include <mutex>
+#include "types.h"
+
+class Mmap64
+{
+public:
+    explicit Mmap64(std::string devName,
+                    uint64 offset,
+                    size_t size);
+    virtual ~Mmap64();
+
+    uint32 read32(uint64 offset);
+    void write32(uint64 offset, uint32 value);
+
+private:
+    std::string devName;
+    uint64 offset;
+    size_t size;
+    // std::mutex &myMutex;
+    void *mapAddr;
+    uint64 baseAddr;
+    uint64 loadModulesAndGetBaseAddress(std::string devName, uint64 offset, size_t size);
+};
+
+#endif
